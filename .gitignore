@@ -1,6 +1,10 @@
 # Virtual environment
 llm/
 
+# ChromaDB persistent directory
+chroma/
+
+
 # Python cache files
 __pycache__/
 *.pyc

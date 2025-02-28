@@ -1,27 +1,35 @@
+import pandas as pd
+import uuid
 import chromadb
 
-chroma_client = chromadb.Client()
-collection = chroma_client.get_or_create_collection(name="my_collection")
+def get_chromadb_collection(collection_name):
+    """Initialize ChromaDB client and get the collection."""
+    client = chromadb.PersistentClient()
+    collection = client.get_or_create_collection(name=collection_name)
+    return collection
 
-collection.upsert(
-    documents=[
-        "This is a document about New York",
-        "This is a document about Delhi"
-    ],
-    ids=["id1", "id2"],
-    metadatas=[
-        {'url': 'https://en.wikipedia.org/wiki/New_York_City'},
-        {'url': 'https://en.wikipedia.org/wiki/Delhi'}
-    ]
-)
+def load_data_to_chromadb(csv_file, collection_name):
+    """Load data from CSV into ChromaDB collection."""
+    df = pd.read_csv(csv_file)
 
-all_docs = collection.get()
-# print(all_docs)
+    collection = get_chromadb_collection(collection_name)
 
-results = collection.query(
-    query_texts=['Query is about India'],
-    n_results=2
-)
+    # If the collection is empty, add data
+    if not collection.count():
+        for _, row in df.iterrows():
+            collection.add(
+                documents=row['Techstack'],
+                metadatas={'links': row['Links']},
+                ids=[str(uuid.uuid4())]
+            )
 
-# Semantic search - Delhi has smaller Euclidean distance
-print(results)
+def query_chromadb(collection_name, query_texts, n_results=2):
+    """Query the ChromaDB collection for relevant links."""
+    collection = get_chromadb_collection(collection_name)
+
+    links = collection.query(
+        query_texts=query_texts,
+        n_results=n_results
+    ).get('metadatas', [])
+
+    return links
