@@ -1,7 +1,4 @@
 from langchain_groq import ChatGroq
-from langchain_community.document_loaders import WebBaseLoader
-from langchain_core.prompts import PromptTemplate
-from langchain_core.output_parsers import JsonOutputParser
 from dotenv import load_dotenv
 import os
 from chroma_database import load_data_to_chromadb, query_chromadb
@@ -31,4 +28,3 @@ links = query_chromadb('portfolio', job_skills)
 # Step 4: Generate cold email
 email = generate_email(job, links, llm)
 print(email)
-
