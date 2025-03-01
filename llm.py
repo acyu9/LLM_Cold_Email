@@ -5,6 +5,8 @@ from langchain_core.output_parsers import JsonOutputParser
 from dotenv import load_dotenv
 import os
 from chroma_database import load_data_to_chromadb, query_chromadb
+from job_extractor import extract_job_details
+from email_generator import generate_email
 
 load_dotenv()
 api_key = os.getenv("GROQ_CLOUD_API_KEY")
@@ -15,64 +17,18 @@ llm = ChatGroq(
     temperature=0,
 )
 
-# Scrape the website
-loader = WebBaseLoader(
-    web_path = "https://jobs.intuit.com/job/bengaluru/software-engineer-2/27595/77913719936"
-)
+# Step 1: Extract job details from the website
+job_url = "https://jobs.intuit.com/job/bengaluru/software-engineer-2/27595/77913719936"
+job = extract_job_details(job_url, llm)
 
-page_data = loader.load().pop().page_content
-# print(page_data)
-
-prompt_extract = PromptTemplate.from_template(
-    """
-    ### SCRAPED TEXT FROM WEBSITE:
-    {page_data}
-    ### INSTRUCTION:
-    The scraped text is from the career's page of a website.
-    Your job is to extract the job postings and return them in JSON format containing
-    the following keys: 'role', 'experience', 'skills', and 'description'.
-    Only return the valid JSON.
-    ### VALID JSON (NO PREAMBLE):
-    """
-)
-
-# Chain/pipeline | that passes the prompt to llm
-chain_extract = prompt_extract | llm
-result = chain_extract.invoke(input={'page_data':page_data})
-# print(result.content)
-
-# Change result from str to json (dict)
-json_parser = JsonOutputParser()
-job = json_parser.parse(result.content)
-# print(job)
-# print(job['skills'])
-
-# Get links with query texts (Python, React)
+# Step 2: Load portfolio data to ChromaDB for efficient and semantic search
 load_data_to_chromadb('my_portfolio.csv', 'portfolio')
-links = query_chromadb('portfolio', ['Experience in Python', 'Expertise in React'])
-# print(links)
 
-prompt_email = PromptTemplate.from_template(
-    """
-    ### JOB DESCRIPTION:
-    {job_description}
+# Step 3: Query ChromaDB using skills from the job description for the relevant links
+job_skills = job['skills']
+links = query_chromadb('portfolio', job_skills)
 
-    ### INSTRUCTION:
-    You are Bob, a business development executive at XYZ. XYZ is
-    an AI & Software consulting company dedicated to the seamless
-    integration of business processes through automated tools.
-    Your job is to write a cold email to the client regarding the job
-    mentioned above describing the capability in fulfilling their needs.
-    Also add the most relevant ones from the following links to 
-    showcase XYZ's portfolio: {link_list}.
-    Remember you are Bob, BDE at XYZ.
-    Do not provide a preamble.
+# Step 4: Generate cold email
+email = generate_email(job, links, llm)
+print(email)
 
-    ### EMAIL (NO PREAMBLE):
-    """
-)
-
-# Generate email
-chain_email = prompt_email | llm
-res = chain_email.invoke({'job_description': str(job), 'link_list': links})
-print(res.content)

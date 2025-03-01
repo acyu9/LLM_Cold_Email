@@ -27,6 +27,7 @@ def query_chromadb(collection_name, query_texts, n_results=2):
     """Query the ChromaDB collection for relevant links."""
     collection = get_chromadb_collection(collection_name)
 
+    # Get links with query texts
     links = collection.query(
         query_texts=query_texts,
         n_results=n_results
